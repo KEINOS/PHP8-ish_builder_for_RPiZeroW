@@ -1,30 +1,20 @@
 #!/bin/bash
-# =============================================================================
-#  This script builds latest master PHP from source on RaspberryPi Zero (ARMv6)
-#
-#  - Raspbian OS: v10 Buster
-# =============================================================================
 
-# =============================================================================
-#  Pre check before run
-# =============================================================================
-
-if [ "$(whoami)" != "root" ]; then
-  echo 'ERROR: You need to run this script with sudo or as a root.'
-  exit 1
-fi
-
-# =============================================================================
-#  Define Var/Const/Env value
-# =============================================================================
-
+# Envs
 VERSION_PHP='8.0.0-dev'
 SCREEN_WIDTH_DEFAULT=60
 
 NAME_FILE_ZIP_PHP='php.zip'
-
 NAME_DIR_SRC='php-src'
 NAME_DIR_EXTRACT='php-src-master'
+
+# Envs to colorize fonts
+FONT_ESC='\e['
+FONT_ESC_END='m'
+FONT_COLOR_OFF="${FONT_ESC}${FONT_ESC_END}"
+FONT_COLOR_BLUE="${FONT_ESC}34${FONT_ESC_END}"
+FONT_COLOR_BLUE_BLINK="${FONT_ESC}34;5${FONT_ESC_END}"
+FONT_COLOR_BLUE_BOLD="${FONT_ESC}34;1${FONT_ESC_END}"
 
 PATH_DIR_SCRIPT=$(cd $(dirname $0); pwd)
 PATH_DIR_SRC="${PATH_DIR_SCRIPT}/${NAME_DIR_SRC}/${NAME_DIR_EXTRACT}"
@@ -38,23 +28,12 @@ PHP_VERSION=$VERSION_PHP
 PHP_URL='https://github.com/php/php-src/archive/master.zip'
 PHP_INI_DIR='/usr/local/etc/php'
 
-# Colorize Fonts
-FONT_ESC='\e['
-FONT_ESC_END='m'
-FONT_COLOR_OFF="${FONT_ESC}${FONT_ESC_END}"
-FONT_COLOR_BLUE="${FONT_ESC}34${FONT_ESC_END}"
-FONT_COLOR_BLUE_BLINK="${FONT_ESC}34;5${FONT_ESC_END}"
-FONT_COLOR_BLUE_BOLD="${FONT_ESC}34;1${FONT_ESC_END}"
 
-# Screen Width
+# Set screen width
 if [ -n "${TERM}" ];
   then SCREEN_WIDTH=$(tput cols);
   else SCREEN_WIDTH=$SCREEN_WIDTH_DEFAULT;
 fi
-
-# =============================================================================
-#  Functions
-# =============================================================================
 
 function askUserContinue(){
     askUserYorN "${1}" "${2}" || {
@@ -89,6 +68,12 @@ function echoStatus(){
     echo -n -e "${FONT_COLOR_BLUE_BOLD}- ${1}${FONT_COLOR_OFF} "
     echo ${@:3:($#-2)}
 }
+
+
+if [ "$(whoami)" != "root" ]; then
+  echo 'ERROR: You need to run this script with sudo or as a root.'
+  exit 1
+fi
 
 # =============================================================================
 echoTitle 'PHP8-ish builder for RaspberryPi Zero (ARMv6l)' '='
@@ -249,10 +234,20 @@ echoStatus 'Run configure'
 # -----------------------------------------------------------------------------
 echoTitle 'Make and install'
 # -----------------------------------------------------------------------------
+echoStatus 'Do make'
 make -j "$(nproc)"
 find -type f -name '*.a' -delete
+
+echoStatus 'Do make Install'
 make install
 { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; }
+
+echoStatus 'Do make Test'
+make test
+
+echoStatus 'Do make Clean'
 make clean
 # https://github.com/docker-library/php/issues/692 (copy default example "php.ini" files somewhere easily discoverable)
+
+echoStatus 'Copy php.ini-* files'
 cp -v php.ini-* "$PHP_INI_DIR/"
